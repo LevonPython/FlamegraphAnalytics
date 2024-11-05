@@ -1,0 +1,928 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css">
+    <link rel="stylesheet" type="text/css" href="./node_modules/d3-flame-graph/dist/d3-flamegraph.css">
+
+    <style>
+      body {
+        padding-top: 20px;
+        padding-bottom: 20px;
+      }
+
+      /* Floating window (modal) styles */
+      .modal-overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background-color: rgba(0, 0, 0, 0.5);
+        display: flex;
+        justify-content: center;
+        align-items: center;
+      }
+
+      .modal-content {
+        background-color: #fff;
+        padding: 20px;
+        border-radius: 8px;
+        width: 300px;
+        text-align: center;
+      }
+
+      .modal-content input {
+        margin-bottom: 15px;
+      }
+
+      .header {
+        padding-bottom: 20px;
+        padding-right: 15px;
+        padding-left: 15px;
+        border-bottom: 1px solid #e5e5e5;
+      }
+
+      .header h3 {
+        margin-top: 0;
+        margin-bottom: 0;
+        line-height: 40px;
+      }
+
+      .container {
+        max-width: 100%; /* Set container to 100% width */
+      }
+
+      .panel-section {
+        margin-top: 20px;
+        padding: 15px;
+        border: 1px solid #ddd;
+        background-color: #f9f9f9;
+        width: 100%; /* Ensure full width */
+      }
+
+      .panel-section.search-panel {
+        background-color: #f0f8ff; /* Separate background color for Search Panel */
+      }
+
+      .form-left {
+        width: 100%; /* Ensure full width for form panel */
+      }
+
+      #status-message, #filter-status-message {
+        margin-top: 20px;
+        font-weight: bold;
+      }
+
+      #status-message.success, #filter-status-message.success {
+        color: green;
+      }
+
+      #status-message.error, #filter-status-message.error {
+        color: red;
+      }
+
+      #transformed-data {
+        margin-top: 30px;
+        background-color: #f9f9f9;
+        padding: 15px;
+        border: 1px solid #ddd;
+        overflow-x: auto;
+        max-height: 300px;
+        white-space: pre-wrap;
+      }
+
+      .form-group-row {
+        margin-top: 20px;
+      }
+
+      #chart {
+        width: 100%; /* Ensure the flamegraph fits within the available width */
+      }
+
+      .suggestions-list {
+        position: absolute;
+        z-index: 1000;
+        background-color: white;
+        border: 1px solid #ddd;
+        max-height: 150px;
+        overflow-y: auto;
+        max-width: calc(50% - 30px); /* Half the width of the input field */
+        min-width: 100px; /* Minimum width to ensure proper visibility */
+      }
+
+      .suggestions-list .list-group-item {
+        cursor: pointer;
+      }
+
+      .suggestions-list .list-group-item:hover {
+        background-color: #f0f0f0;
+      }
+
+      table {
+        width: 100%;
+        border-collapse: collapse;
+      }
+
+      th, td {
+        padding: 8px;
+        border: 1px solid #ddd;
+        text-align: left;
+      }
+
+      thead {
+        background-color: #f2f2f2;
+      }
+
+
+    .selected-filter {
+      display: inline-block;
+      padding: 5px 10px;
+      margin: 5px;
+      background-color: #e0e0e0;
+      border-radius: 5px;
+      font-size: 14px;
+      position: relative;
+    }
+
+  .selected-filter .remove-filter {
+    position: absolute;
+    top: 0;
+    right: 5px;
+    cursor: pointer;
+    color: red;
+  }
+
+  .selected-filters-container {
+    margin-top: 20px;
+  }
+
+  .selected-filter.selected {
+    background-color: #b0d6ff;
+  }
+    </style>
+    <title>RCLatency Flame-Graph</title>
+  </head>
+  <body>
+    <div class="container">
+
+      <!-- Title -->
+      <div class="header clearfix">
+        <h3 class="text-muted">RCLatency Flame-Graph</h3>
+      </div>
+
+      <!-- Input Parameters -->
+      <div class="panel-section form-left">
+        <h3 class="text-muted">Input Parameters</h3>
+        <nav>
+          <form class="form-inline" id="data-form">
+            <div class="form-group">
+              <label for="start-date">Start Date:</label>
+              <input type="date" class="form-control" id="start-date" required>
+            </div>
+            <div class="form-group">
+              <label for="end-date">End Date:</label>
+              <input type="date" class="form-control" id="end-date" required>
+            </div>
+
+            <!-- Empty row -->
+            <div class="form-group-row"></div>
+
+            <div class="form-group">
+              <label for="environment">Environment:</label>
+              <input type="text" class="form-control" id="environment" placeholder="Start typing to filter...">
+              <ul id="environment-suggestions" class="list-group suggestions-list" style="display: none;"></ul>
+            </div>
+
+            <!-- Empty row -->
+            <div class="form-group-row"></div>
+
+            <div class="form-group">
+              <label for="user-type">User Type:</label>
+              <input type="text" class="form-control" id="user-type" placeholder="Start typing to filter...">
+              <ul id="user-type-suggestions" class="list-group suggestions-list" style="display: none;"></ul>
+            </div>
+
+            <!-- Empty row -->
+            <div class="form-group-row"></div>
+
+            <div class="form-group">
+              <label for="user-id">User ID:</label>
+              <input type="text" class="form-control" id="user-id" placeholder="Start typing to filter...">
+              <ul id="user-id-suggestions" class="list-group suggestions-list" style="display: none;"></ul>
+            </div>
+
+            <!-- Empty row -->
+            <div class="form-group-row"></div>
+
+            <div class="form-group">
+              <label for="module-id">Module ID:</label>
+              <input type="text" class="form-control" id="module-id" placeholder="Start typing to filter...">
+              <ul id="module-id-suggestions" class="list-group suggestions-list" style="display: none;"></ul>
+            </div>
+
+            <!-- Empty row -->
+            <div class="form-group-row"></div>
+
+            <div class="form-group">
+              <label for="content-id">Content ID:</label>
+              <input type="text" class="form-control" id="content-id" placeholder="Start typing to filter...">
+              <ul id="content-id-suggestions" class="list-group suggestions-list" style="display: none;"></ul>
+            </div>
+
+            <!-- Empty row -->
+            <div class="form-group-row"></div>
+
+            <div class="form-group">
+              <label for="tts-engine">TTS Engine:</label>
+              <input type="text" class="form-control" id="tts-engine" placeholder="Start typing to filter...">
+              <ul id="tts-engine-suggestions" class="list-group suggestions-list" style="display: none;"></ul>
+            </div>
+
+            <!-- Empty row -->
+            <div class="form-group-row"></div>
+
+            <div id="selected-filters" class="selected-filters-container"></div>
+            <!-- Empty row -->
+            <div class="form-group-row"></div>
+
+            <button type="submit" class="btn btn-primary">Fetch Data</button>
+          </form>
+        </nav>
+      </div>
+
+      <!-- Search Actions -->
+      <div class="panel-section search-panel">
+        <h3 class="text-muted">Search Panel</h3>
+        <nav>
+          <div>
+            <form class="form-inline" id="form">
+              <a class="btn" href="javascript: resetZoom();">Reset zoom</a>
+              <a class="btn" href="javascript: clear();">Clear</a>
+              <div class="form-group">
+                <input type="text" class="form-control" id="term" placeholder="Search term">
+              </div>
+              <a class="btn btn-primary" href="javascript: search();">Search</a>
+            </form>
+          </div>
+        </nav>
+      </div>
+
+      <!-- Status message -->
+      <div id="status-message"></div>
+      <div id="filter-status-message"></div>
+
+      <!-- Flamegraph Chart -->
+      <div class="panel-section">
+        <h3 class="text-muted">Flamegraph Chart</h3>
+          <div id="chart">
+            <div id="no-data-message" style="display: none;">No data available with the selected filters to draw a flamegraph.</div>
+          </div>
+        <hr>
+        <div id="details"></div>
+      </div>
+
+      <!-- Empty row -->
+      <div class="form-group-row"></div>
+
+      <!-- Table View -->
+      <div class="panel-section" style="display: block;">
+        <h3 class="text-muted">Table View</h3>
+        <!-- Div to display transformed data in a table mode-->
+        <div id="transformed-data"></div>
+      </div>
+
+    </div>
+
+    <!-- Modal for API Key Input -->
+    <div id="apiKeyModal" class="modal-overlay">
+      <div class="modal-content">
+        <h4>Please enter your API key</h4>
+        <input type="password" id="apiKeyInput" class="form-control" placeholder="API Key">
+        <button id="submitApiKey" class="btn btn-primary">Submit</button>
+        <div id="apiKeyError" style="color: red; display: none;">Invalid API Key. Please try again.</div>
+      </div>
+    </div>
+
+    <!-- D3.js -->
+    <script src="https://d3js.org/d3.v7.js" charset="utf-8"></script>
+
+    <!-- d3-flamegraph -->
+    <script type="text/javascript" src="./node_modules/d3-flame-graph/dist/d3-flamegraph.js"></script>
+    <script type="text/javascript" src="./node_modules/d3-flame-graph/dist/d3-flamegraph-tooltip.js"></script>
+
+    <script type="text/javascript">
+
+    document.addEventListener("DOMContentLoaded", function () {
+
+      // Set default dates
+      const startDateInput = document.getElementById("start-date");
+      const endDateInput = document.getElementById("end-date");
+
+      const today = new Date();
+      const sevenDaysAgo = new Date();
+      sevenDaysAgo.setDate(today.getDate() - 7);
+
+      // Format dates as YYYY-MM-DD
+      const formatDate = (date) => date.toISOString().split("T")[0];
+
+      startDateInput.value = formatDate(sevenDaysAgo); // Default to 7 days ago
+      endDateInput.value = formatDate(today);          // Default to today
+
+      let allEnvironments = [];
+      let allUserIds = [];
+      let allUserTypes = [];
+      let allModuleIds = [];
+      let allContentIds = [];
+      let allTTSEngines = [];
+      
+
+      const modal = document.getElementById("apiKeyModal");
+      const submitApiKeyButton = document.getElementById("submitApiKey");
+      const apiKeyInput = document.getElementById("apiKeyInput");
+      const apiKeyError = document.getElementById("apiKeyError");
+
+      // Check if the API key is already stored in session storage
+      const storedApiKey = sessionStorage.getItem("apiKey");
+
+      if (storedApiKey) {
+        // Prefill the input field with the stored key and try to fetch data automatically
+        apiKeyInput.value = storedApiKey;
+        modal.style.display = "none"; // Hide the modal since the key exists
+        fetchFilterOptions(startDateInput.value, endDateInput.value, storedApiKey)
+          .catch(() => {
+            apiKeyError.style.display = "block"; // Show error message if the API key is invalid
+            modal.style.display = "flex"; // Reopen the modal on failure
+          });
+      } else {
+        modal.style.display = "flex"; // Show modal if no API key is stored
+      }
+
+      // Handle API key submission
+      submitApiKeyButton.addEventListener("click", function () {
+        const apiKey = apiKeyInput.value;
+
+        // Store the API key in session storage
+        sessionStorage.setItem("apiKey", apiKey);
+
+        modal.style.display = "none"; // Hide the modal immediately
+        // Attempt to fetch filter options with the provided API key
+        fetchFilterOptions(startDateInput.value, endDateInput.value, apiKey)
+          .catch(() => {
+            apiKeyError.style.display = "block"; // Show error message if the API key is invalid
+            modal.style.display = "flex"; // Reopen the modal on failure
+          });
+      });
+    });
+
+    let selectedFilters = {
+      environment: [],
+      userType: [],
+      userId: [],
+      moduleId: [],
+      contentId: [],
+      ttsEngine: []
+    };
+
+
+    // Function to fetch filter options
+    function fetchFilterOptions(startDate, endDate, apiKey) {
+      const filterStatusMessage = document.getElementById('filter-status-message');
+      filterStatusMessage.textContent = "Fetching filter options...";
+      filterStatusMessage.classList.remove('success', 'error');
+
+      const url = new URL("http://localhost:3000/fetch-filters");
+      url.searchParams.append("start_date", startDate);
+      url.searchParams.append("end_date", endDate);
+
+      return d3.json(url.toString(), {
+            headers: { 'x-api-key': apiKey }
+          })
+        .then((data) => {
+          console.log("Filter Data:", data);
+
+          // Store all filter data for dynamic suggestions
+          allEnvironments = data.environments;
+          allUserIds = data.userIds;
+          allUserTypes = data.userTypes;
+          allModuleIds = data.moduleIds;
+          allContentIds = data.contentIds;
+          allTTSEngines = data.ttsEngines;
+
+          // Initialize filtering and suggestions
+          initFilterInput("environment", allEnvironments);
+          initFilterInput("user-id", allUserIds);
+          initFilterInput("user-type", allUserTypes);
+          initFilterInput("module-id", allModuleIds);
+          initFilterInput("content-id", allContentIds);
+          initFilterInput("tts-engine", allTTSEngines);
+
+          filterStatusMessage.textContent = "Filter options successfully fetched!";
+          filterStatusMessage.classList.add('success');
+          setTimeout(() => { filterStatusMessage.textContent = ''; }, 5000);
+        })
+        .catch(error => {
+          console.error("Error fetching filters:", error);
+          filterStatusMessage.textContent = "Error fetching filter options.";
+          filterStatusMessage.classList.add('error');
+          setTimeout(() => { filterStatusMessage.textContent = ''; }, 5000);
+        });
+    }
+
+
+// Selected Filters Block ----- START -----
+    function addFilter(inputId, value) {
+        const filterType = mapInputIdToFilterType(inputId); // Map inputId to the correct filter key
+        if (!selectedFilters[filterType].includes(value)) {
+            selectedFilters[filterType].push(value);
+            displaySelectedFilters();
+        }
+    }
+
+    function mapInputIdToFilterType(inputId) {
+        // Map your input field IDs to the corresponding keys in selectedFilters
+        const inputMap = {
+            'environment': 'environment',
+            'user-type': 'userType',
+            'user-id': 'userId',
+            'module-id': 'moduleId',
+            'content-id': 'contentId',
+            'tts-engine': 'ttsEngine'
+        };
+        return inputMap[inputId] || inputId; // Default to inputId if not found
+    }
+
+
+    function removeFilter(filterType, value) {
+      selectedFilters[filterType] = selectedFilters[filterType].filter(item => item !== value);
+      displaySelectedFilters();
+    }
+
+    function displaySelectedFilters() {
+        const selectedFiltersContainer = document.getElementById("selected-filters");
+        selectedFiltersContainer.innerHTML = ''; // Clear current filters
+
+        Object.keys(selectedFilters).forEach(filterType => {
+            if (selectedFilters[filterType].length > 0) {
+                // Create a label to indicate the filter type
+                const filterLabel = document.createElement('div');
+                filterLabel.textContent = `${capitalize(filterType)} (Selected):`;
+                filterLabel.style.fontWeight = 'bold';
+                selectedFiltersContainer.appendChild(filterLabel);
+
+                selectedFilters[filterType].forEach(value => {
+                    const filterDiv = document.createElement('div');
+                    filterDiv.classList.add('selected-filter');
+                    filterDiv.innerHTML = `${value} <span class="remove-filter" onclick="removeFilter('${filterType}', '${value}')">x</span>`;
+                    selectedFiltersContainer.appendChild(filterDiv);
+                });
+            }
+        });
+    }
+
+    // Utility function to capitalize the first letter of a word
+    function capitalize(word) {
+        return word.charAt(0).toUpperCase() + word.slice(1);
+    }
+
+
+    document.getElementById("data-form").addEventListener("submit", function(event) {
+      event.preventDefault();
+
+      let startDate = document.getElementById("start-date").value;
+      let endDate = document.getElementById("end-date").value;
+
+      fetchData(startDate, endDate, selectedFilters.environment, selectedFilters.userType, selectedFilters.userId, selectedFilters.moduleId, selectedFilters.contentId, selectedFilters.ttsEngine);
+    });
+
+  // filter suggestions logic for each input field
+    function initFilterInput(inputId, dataList) {
+        const inputField = document.getElementById(inputId);
+        const suggestionsList = document.getElementById(`${inputId}-suggestions`);
+
+        inputField.addEventListener("focus", function() {
+            suggestionsList.innerHTML = ''; // Clear the list before repopulating
+
+            // Remove the suggestionsList from the DOM and re-attach it to fully reset scroll
+            const parent = suggestionsList.parentNode;
+            parent.removeChild(suggestionsList);
+            parent.appendChild(suggestionsList);
+
+            // Reset scroll position manually
+            suggestionsList.scrollTop = 0;
+
+            // Filter out already selected options
+            const filterType = mapInputIdToFilterType(inputId);
+            const availableData = dataList.filter(item => !selectedFilters[filterType].includes(item));
+
+            availableData.forEach(item => {
+                const li = document.createElement("li");
+                li.textContent = item;
+                li.classList.add("list-group-item");
+                li.addEventListener("click", () => {
+                    inputField.value = '';  // Clear input after selection
+                    suggestionsList.style.display = 'none'; // Hide suggestions
+                    addFilter(inputId, item); // Add selected filter
+                });
+                suggestionsList.appendChild(li);
+            });
+            suggestionsList.style.display = 'block';
+        });
+
+        // Handle input for partial matching as before
+        inputField.addEventListener("input", function() {
+            const query = inputField.value.toLowerCase();
+            suggestionsList.innerHTML = '';
+            if (query) {
+                const filterType = mapInputIdToFilterType(inputId);
+                const filteredData = dataList.filter(item => item.toLowerCase().includes(query));
+                const availableData = filteredData.filter(item => !selectedFilters[filterType].includes(item));
+
+                availableData.forEach(item => {
+                    const li = document.createElement("li");
+                    li.textContent = item;
+                    li.classList.add("list-group-item");
+                    li.addEventListener("click", () => {
+                        inputField.value = '';  // Clear input after selection
+                        suggestionsList.style.display = 'none'; // Hide suggestions
+                        addFilter(inputId, item); // Add selected filter
+                    });
+                    suggestionsList.appendChild(li);
+                });
+                suggestionsList.style.display = 'block';
+            } else {
+                suggestionsList.style.display = 'block'; // Show all options when no input
+            }
+        });
+
+        // Hide suggestions list on blur
+        inputField.addEventListener("blur", function() {
+            setTimeout(() => suggestionsList.style.display = 'none', 200); // Delay to allow click event to register
+        });
+    }
+
+
+
+// Selected Filters Block ----- END -----
+
+    // Function to merge duplicate nodes within the same pipeline
+      function mergeDuplicateNodes(pipeline) {
+        const nodeMap = {};
+
+        pipeline.forEach(node => {
+          if (nodeMap[node.name]) {
+            // Sum up totals if the node name already exists
+            nodeMap[node.name].total += node.total;
+            // Recursively merge child nodes if they exist
+            nodeMap[node.name].pipeline = mergeDuplicateNodes(
+              nodeMap[node.name].pipeline.concat(node.pipeline || [])
+            );
+          } else {
+            // Add new node to the map and ensure pipeline is an array
+            nodeMap[node.name] = {
+              ...node,
+              pipeline: node.pipeline || [] // Initialize pipeline as an empty array if undefined
+            };
+          }
+        });
+
+        const mergedNodes = Object.values(nodeMap);  // Convert map back to an array
+        //console.log("Merged Nodes:", mergedNodes);  // Log the merged nodes
+
+        return mergedNodes;
+      }
+
+
+        // Function to merge nodes with the same name
+    function mergeNodes(node1, node2) {
+      // If the names are the same, combine their totals
+      if (node1.name === node2.name) {
+        node1.total += node2.total;
+
+        // If both nodes have children, merge them as well
+        if (node1.pipeline && node2.pipeline) {
+          node2.pipeline.forEach(child2 => {
+            const matchingChild1 = node1.pipeline.find(child1 => child1.name === child2.name);
+            if (matchingChild1) {
+              // Recursively merge matching children
+              mergeNodes(matchingChild1, child2);
+            } else {
+              // If no match is found, add the child from node2 to node1
+              node1.pipeline.push(child2);
+            }
+          });
+        }
+      }
+    }
+    
+    // Function to transform nested stats into the required format for the flamegraph
+    function processStats(stats) {
+      // Helper function to process the pipeline recursively and merge duplicate nodes
+      const processPipeline = (pipeline) => {
+        // Ensure pipeline is an array and filter out null values
+        const validPipeline = pipeline 
+          ? pipeline.filter(node => node !== null && node.total > 0) 
+          : [];
+        
+        const mergedPipeline = mergeDuplicateNodes(validPipeline);
+        
+        return mergedPipeline.map(node => {
+          const children = processPipeline(node.pipeline || []);
+          
+          // Only include the `children` field if there are children
+          const resultNode = {
+            name: node.name,
+            value: node.total
+          };
+
+          if (children.length > 0) {
+            resultNode.children = children;
+          }
+
+          return resultNode;
+        }).filter(node => node.value > 0 || (node.children && node.children.length > 0));
+      };
+
+      // Check if the stats object is valid and has the necessary properties
+      if (!stats || !stats.name || stats.total_rc === undefined) {
+        return null;
+      }
+
+      console.log("Processing stats:", stats);  // Log the stats being processed
+
+      // Return the transformed structure, omitting empty children
+      const children = processPipeline(stats.pipeline || []);
+      const result = {
+        name: stats.name,
+        value: stats.total_rc
+      };
+
+      if (children.length > 0) {
+        result.children = children;
+      }
+
+      return result;
+    }
+
+
+
+
+    // Function to transform and combine stats across multiple rows
+    function processStatsRows(statsRows) {
+      let combinedStats = null;
+
+      statsRows.forEach(row => {
+        const stats = row.stats;
+
+        // If this is the first row, initialize combinedStats
+        if (!combinedStats) {
+          combinedStats = JSON.parse(JSON.stringify(stats));  // Deep copy to avoid modifying the original row
+          combinedStats.pipeline = mergeDuplicateNodes(combinedStats.pipeline);
+        } else {
+          // Combine total_rc
+          combinedStats.total_rc += stats.total_rc;
+
+          // Merge the pipelines recursively and handle duplicates
+          stats.pipeline.forEach(node2 => {
+            const matchingNode1 = combinedStats.pipeline.find(node1 => node1.name === node2.name);
+            if (matchingNode1) {
+              mergeNodes(matchingNode1, node2);
+            } else {
+              // If no matching node is found, add the node from stats to combinedStats
+              combinedStats.pipeline.push(node2);
+            }
+          });
+
+          // Merge duplicate nodes within the combined pipeline
+          combinedStats.pipeline = mergeDuplicateNodes(combinedStats.pipeline);
+        }
+      });
+
+      return combinedStats;
+    }
+
+    // Initialize the flamegraph chart
+    const chart = flamegraph()
+      .width(960)
+      .cellHeight(18)
+      .transitionDuration(750)
+      .minFrameSize(0)
+      .transitionEase(d3.easeCubic)
+      .sort(true)
+      .title("")
+      .onClick(onClick)
+      .selfValue(false)
+      .setColorMapper((d, originalColor) =>
+        d.highlight ? "#6aff8f" : originalColor);
+
+    const tip = flamegraph.tooltip.defaultFlamegraphTooltip()
+      .text(d => "name: " + d.data.name + ", value: " + d.data.value);
+    chart.tooltip(tip);
+
+    const details = document.getElementById("details");
+    chart.setDetailsElement(details);
+
+    function fetchData(startDate, endDate, environment, userType, userId, moduleId, contentId, ttsEngine) {
+      const url = new URL("http://localhost:3000/fetch-data");
+
+      url.searchParams.append("start_date", startDate);
+      url.searchParams.append("end_date", endDate);
+      if (environment) url.searchParams.append("environment", environment);
+      if (userType) url.searchParams.append("user_type", userType);
+      if (userId) url.searchParams.append("user_id", userId);
+      if (moduleId) url.searchParams.append("module_id", moduleId);
+      if (contentId) url.searchParams.append("content_id", contentId);
+      if (ttsEngine) url.searchParams.append("tts_engine", ttsEngine);
+
+      const statusMessage = document.getElementById('status-message');
+      const noDataMessage = document.getElementById('no-data-message');
+      const chartContainer = d3.select("#chart");
+      const transformedDataDiv = document.getElementById('transformed-data');
+      statusMessage.textContent = "Fetching data...";
+      statusMessage.classList.remove('success', 'error');
+
+        // Retrieve the API key from session storage
+      const apiKey = sessionStorage.getItem("apiKey");
+
+      if (!apiKey) {
+        console.error("API key is missing.");
+        statusMessage.textContent = "Error: API key is missing.";
+        statusMessage.classList.add('error');
+        return;
+      }
+
+      // Fetch data with the API key in headers
+      d3.json(url.toString(), {
+        headers: { 'x-api-key': apiKey }
+      })
+        .then((data) => {
+          console.time('Total Data Processing Time');
+          console.time('processStatsRows Time');
+
+          // Combine stats across all rows
+          const combinedStats = processStatsRows(data);
+
+          console.timeEnd('processStatsRows Time');
+          console.time('processStats Time');
+
+          // Transform the combined stats for visualization
+          // This approach ensures that after processing combinedStats using processStats, it filters out any null values from the children array. 
+          const transformedData = processStats(combinedStats);
+
+
+          // Display transformed data in the div
+          // document.getElementById('transformed-data').textContent = JSON.stringify(transformedData, null, 2);
+
+          console.timeEnd('processStats Time');
+          
+          // Clear any existing chart elements
+          chartContainer.selectAll("*").remove();
+
+          if (transformedData && transformedData.children && transformedData.children.length > 0) {
+            console.time('Chart Rendering Time');
+            chartContainer
+              .datum(transformedData)
+              .call(chart)
+              .call(invokeFind);
+            console.timeEnd('Chart Rendering Time');
+            
+            if (noDataMessage) {
+              noDataMessage.style.display = 'none';  // Hide the "No Data" message
+            }
+
+          } else {
+            // No data to display
+            if (noDataMessage) {
+              noDataMessage.style.display = 'none';  // Hide the "No Data" message element
+            }
+
+            // Add a text element to indicate no data is available
+            chartContainer.append("text")
+              .attr("x", chartContainer.node().clientWidth / 2)
+              .attr("y", chartContainer.node().clientHeight / 2)
+              .attr("text-anchor", "middle")
+              .style("font-size", "16px")
+              .style("fill", "red")
+              .text("No data available with the selected filters.");
+          }
+
+          // Render transformed data as a table
+          if (transformedData) {
+            transformedDataDiv.innerHTML = generateTableFromData(transformedData);
+          } else {
+            transformedDataDiv.innerHTML = "No data available to display as a table.";
+          }
+
+          statusMessage.textContent = "Data successfully fetched!";
+          statusMessage.classList.add('success');
+          setTimeout(() => {
+            statusMessage.textContent = '';
+          }, 5000);  // Remove status message after 5 seconds
+
+          // Fetch and update filter options after fetching data
+          //fetchFilterOptions(startDate, endDate, apiKey);
+        })
+        .catch(error => {
+          console.warn("Error fetching data:", error);
+          statusMessage.textContent = "Error fetching data.";
+          statusMessage.classList.add('error');
+          setTimeout(() => {
+            statusMessage.textContent = '';
+          }, 5000);  // Remove status message after 5 seconds
+        });
+    }
+
+    // Function to generate an HTML table from transformed data
+    function generateTableFromData(data) {
+      let table = "<table class='table table-bordered'><thead><tr>";
+
+      // Generate table headers based on the maximum depth of the tree
+      const maxDepth = getMaxDepth(data);
+      for (let i = 0; i <= maxDepth; i++) {
+        table += `<th>Level ${i + 1}</th>`;
+      }
+      table += "<th>Value</th></tr></thead><tbody>";
+
+      // Render rows
+      renderRow(data, 0);
+
+      table += "</tbody></table>";
+      return table;
+
+      // Function to recursively render rows
+      function renderRow(node, depth) {
+        let row = "<tr>";
+
+        // Add empty cells for previous levels
+        for (let i = 0; i < depth; i++) {
+          row += "<td></td>";
+        }
+
+        // Add the current node
+        row += `<td>${node.name}</td>`;
+
+        // Fill remaining columns with empty cells
+        for (let i = depth + 1; i <= maxDepth; i++) {
+          row += "<td></td>";
+        }
+
+        // Add the value cell
+        row += `<td>${node.value}</td>`;
+        row += "</tr>";
+
+        table += row;
+
+        // Recursively render each child node
+        if (node.children && node.children.length > 0) {
+          node.children.forEach(child => renderRow(child, depth + 1));
+        }
+      }
+
+      // Function to calculate the maximum depth of the tree
+      function getMaxDepth(node) {
+        if (!node.children || node.children.length === 0) {
+          return 0;
+        }
+        return 1 + Math.max(...node.children.map(getMaxDepth));
+      }
+    }
+
+
+    function search() {
+      var term = document.getElementById("term").value;
+      chart.search(term);
+    }
+
+    function find(id) {
+      var elem = chart.findById(id);
+      if (elem){
+        console.log(elem);
+        chart.zoomTo(elem);
+      }
+    }
+
+    function clear() {
+      document.getElementById('term').value = '';
+      chart.clear();
+    }
+
+    function resetZoom() {
+      chart.resetZoom();
+    }
+
+    function onClick(d) {
+      console.info(`Clicked on ${d.data.name}, id: "${d.id}"`);
+      history.pushState({ id: d.id }, d.data.name, `#${d.id}`);
+    }
+
+    function invokeFind() {
+      var searchId = parseInt(location.hash.substring(1), 10);
+      if (searchId) {
+        find(searchId);
+      }
+    }
+    </script>
+  </body>
+</html>
