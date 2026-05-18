@@ -4,6 +4,7 @@
   "description": "Latency flamegraph demo (mock data by default; optional BigQuery backend)",
   "scripts": {
     "start": "npm run start --prefix local",
-    "serve": "npm run serve --prefix local"
+    "serve": "npm run serve --prefix local",
+    "test": "npm test --prefix local"
   }
 }

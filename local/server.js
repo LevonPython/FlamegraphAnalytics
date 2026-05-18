@@ -15,37 +15,27 @@ const mockProvider = require('./lib/mockProvider');
 const bigQueryProvider = require('./lib/bigQueryProvider');
 
 const config = loadConfig();
-const app = express();
-
-app.use(cors({ origin: config.corsOrigin }));
-app.use(express.json());
 
 /**
  * Validates `x-api-key` for private data sources. Mock mode is always open so
  * the demo works even if an old local `.env` still contains API_KEY.
+ *
+ * @param {import('./lib/config').AppConfig} runtimeConfig
  */
-function validateApiKey(req, res, next) {
-  if (config.dataSource === 'mock' || !config.apiKey) {
-    next();
-    return;
-  }
-  const apiKey = req.headers['x-api-key'];
-  if (apiKey && apiKey === config.apiKey) {
-    next();
-  } else {
-    res.status(403).json({ error: 'Forbidden: Invalid API key' });
-  }
+function validateApiKey(runtimeConfig) {
+  return (req, res, next) => {
+    if (runtimeConfig.dataSource === 'mock' || !runtimeConfig.apiKey) {
+      next();
+      return;
+    }
+    const apiKey = req.headers['x-api-key'];
+    if (apiKey && apiKey === runtimeConfig.apiKey) {
+      next();
+    } else {
+      res.status(403).json({ error: 'Forbidden: Invalid API key' });
+    }
+  };
 }
-
-app.use(validateApiKey);
-
-app.get('/', (req, res) => {
-  res.json({
-    service: 'flamegraph-analytics-api',
-    dataSource: config.dataSource,
-    endpoints: ['/fetch-filters', '/fetch-data'],
-  });
-});
 
 function isValidDate(dateString) {
   return /^\d{4}-\d{2}-\d{2}$/.test(dateString);
@@ -78,36 +68,84 @@ function normalizeQueryDates(query) {
   return { ...query, start_date: start, end_date: end };
 }
 
-app.get('/fetch-filters', async (req, res) => {
-  try {
-    const q = normalizeQueryDates(req.query);
-    const payload =
-      config.dataSource === 'bigquery'
-        ? await bigQueryProvider.fetchFilters(config, q)
-        : await mockProvider.fetchFilters(q);
-    res.json(payload);
-  } catch (error) {
-    console.error('Error fetching filters:', error.message);
-    res.status(500).send('Error fetching filters');
-  }
-});
+/**
+ * Creates an Express app without binding a port. Tests use this directly.
+ *
+ * @param {import('./lib/config').AppConfig} runtimeConfig
+ * @param {{ mockProvider?: typeof mockProvider, bigQueryProvider?: typeof bigQueryProvider }} providers
+ */
+function createApp(
+  runtimeConfig = config,
+  providers = { mockProvider, bigQueryProvider },
+) {
+  const app = express();
+  const activeProviders = {
+    mockProvider,
+    bigQueryProvider,
+    ...providers,
+  };
 
-app.get('/fetch-data', async (req, res) => {
-  try {
-    const q = normalizeQueryDates(req.query);
-    const payload =
-      config.dataSource === 'bigquery'
-        ? await bigQueryProvider.fetchData(config, q)
-        : await mockProvider.fetchData(q);
-    res.json(payload);
-  } catch (error) {
-    console.error('Error occurred:', error.message);
-    res.status(500).send(`Error fetching data: ${error.message}`);
-  }
-});
+  app.use(cors({ origin: runtimeConfig.corsOrigin }));
+  app.use(express.json());
+  app.use(validateApiKey(runtimeConfig));
 
-app.listen(config.port, () => {
-  console.log(
-    `Latency flamegraph API (${config.dataSource}) at http://localhost:${config.port}`,
-  );
-});
+  app.get('/', (req, res) => {
+    res.json({
+      service: 'flamegraph-analytics-api',
+      dataSource: runtimeConfig.dataSource,
+      endpoints: ['/fetch-filters', '/fetch-data'],
+    });
+  });
+
+  app.get('/fetch-filters', async (req, res) => {
+    try {
+      const q = normalizeQueryDates(req.query);
+      const payload =
+        runtimeConfig.dataSource === 'bigquery'
+          ? await activeProviders.bigQueryProvider.fetchFilters(runtimeConfig, q)
+          : await activeProviders.mockProvider.fetchFilters(q);
+      res.json(payload);
+    } catch (error) {
+      console.error('Error fetching filters:', error.message);
+      res.status(500).send('Error fetching filters');
+    }
+  });
+
+  app.get('/fetch-data', async (req, res) => {
+    try {
+      const q = normalizeQueryDates(req.query);
+      const payload =
+        runtimeConfig.dataSource === 'bigquery'
+          ? await activeProviders.bigQueryProvider.fetchData(runtimeConfig, q)
+          : await activeProviders.mockProvider.fetchData(q);
+      res.json(payload);
+    } catch (error) {
+      console.error('Error occurred:', error.message);
+      res.status(500).send(`Error fetching data: ${error.message}`);
+    }
+  });
+
+  return app;
+}
+
+function start() {
+  const app = createApp(config);
+  return app.listen(config.port, () => {
+    console.log(
+      `Latency flamegraph API (${config.dataSource}) at http://localhost:${config.port}`,
+    );
+  });
+}
+
+if (require.main === module) {
+  start();
+}
+
+module.exports = {
+  createApp,
+  getDefaultDateRange,
+  isValidDate,
+  normalizeQueryDates,
+  start,
+  validateApiKey,
+};

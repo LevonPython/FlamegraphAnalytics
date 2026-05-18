@@ -3,12 +3,16 @@
   "private": true,
   "scripts": {
     "start": "node server.js",
-    "serve": "python3 -m http.server 8000"
+    "serve": "python3 -m http.server 8000",
+    "test": "node --test"
   },
   "dependencies": {
     "@google-cloud/bigquery": "^7.9.0",
     "cors": "^2.8.5",
     "dotenv": "^16.4.5",
     "express": "^4.21.2"
+  },
+  "devDependencies": {
+    "supertest": "^7.2.2"
   }
 }

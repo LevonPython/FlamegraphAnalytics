@@ -41,9 +41,14 @@ function toYmd(d) {
  */
 function buildStatsTree(rng) {
   const split = (total, weights) => {
-    const raw = weights.map((weight) => Math.max(1, Math.floor(total * weight)));
-    const diff = total - raw.reduce((sum, value) => sum + value, 0);
-    raw[raw.length - 1] += diff;
+    if (total <= 0) return weights.map(() => 0);
+    const weightTotal = weights.reduce((sum, weight) => sum + weight, 0);
+    const raw = weights.map((weight) => Math.floor((total * weight) / weightTotal));
+    let remainder = total - raw.reduce((sum, value) => sum + value, 0);
+    for (let i = 0; remainder > 0; i += 1) {
+      raw[i % raw.length] += 1;
+      remainder -= 1;
+    }
     return raw;
   };
 
@@ -80,7 +85,7 @@ function buildStatsTree(rng) {
 
   const retryTotal = Math.max(0, Math.floor(rng() * 90) - 25);
   const [providerRetry, jitterWait, circuitCheck] = split(
-    Math.max(3, retryTotal),
+    retryTotal,
     [0.42, 0.34, 0.24],
   );
   const normalizedRetryTotal = retryTotal > 0 ? retryTotal : 0;

@@ -58,9 +58,20 @@ npm start
 cd local && python3 -m http.server 8000
 ```
 
-Visit `http://localhost:8000`, submit an empty API key when prompted (demo mode
-skips validation unless `API_KEY` is set), pick dates/filters, then submit the
-form to render the flame graph.
+Visit `http://localhost:8000`, submit an empty API key when prompted (mock mode
+always skips API-key validation), pick dates/filters, then submit the form to
+render the flame graph.
+
+## Tests
+
+Run the unit and API integration tests from the repository root:
+
+```bash
+npm test
+```
+
+The suite covers mock data shape/filtering, config parsing, API key behavior, and
+the mock `/fetch-filters` and `/fetch-data` endpoints.
 
 ### Configure API URL From the Browser
 
