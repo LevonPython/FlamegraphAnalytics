@@ -1,9 +1,9 @@
 {
-  "dependencies": {
-    "body-parser": "^1.20.2",
-    "cors": "^2.8.5",
-    "d3-flame-graph": "^4.1.3",
-    "dotenv": "^16.4.5",
-    "express": "^4.19.2"
+  "name": "flamegraph-analytics",
+  "private": true,
+  "description": "Latency flamegraph demo (mock data by default; optional BigQuery backend)",
+  "scripts": {
+    "start": "npm run start --prefix local",
+    "serve": "npm run serve --prefix local"
   }
 }
