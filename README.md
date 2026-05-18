@@ -120,6 +120,14 @@ Both endpoints accept optional multi-value query params by repeating keys
 - [`screenshots/RCLatency-Flame-Graph.htm`](screenshots/RCLatency-Flame-Graph.htm) —
   offline snapshot when you cannot host the demo live.
 
+### Mock Data Flame Graph Snapshots
+
+![Mock data flame graph snapshot 1](screenshots/FlameGraph_Snapshot_MockData1.png)
+
+![Mock data flame graph snapshot 2](screenshots/FlameGraph_Snapshot_MockData2.png)
+
+![Mock data flame graph snapshot 3](screenshots/FlameGraph_Snapshot_MockData3.png)
+
 ## Highlight reel
 
 - Summarized complex latency JSON into a hierarchical flame graph for faster RCA.
