@@ -4,7 +4,7 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <!-- Base URL for the Express API (override when deploying or using another port). -->
-    <meta name="api-base-url" content="http://localhost:3000">
+    <meta name="api-base-url" content="">
 
     <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/d3-flame-graph@4.1.3/dist/d3-flamegraph.css">
@@ -326,7 +326,7 @@
     function getApiBaseUrl() {
       const meta = document.querySelector('meta[name="api-base-url"]');
       const raw = meta && meta.content ? meta.content.trim() : '';
-      return raw.replace(/\/$/, '') || 'http://localhost:3000';
+      return raw.replace(/\/$/, '') || window.location.origin;
     }
 
     /**

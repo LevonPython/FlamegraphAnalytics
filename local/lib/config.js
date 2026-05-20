@@ -21,7 +21,7 @@ function loadConfig() {
   const dataSourceRaw = (process.env.DATA_SOURCE || 'mock').toLowerCase();
   const dataSource = dataSourceRaw === 'bigquery' ? 'bigquery' : 'mock';
 
-  const corsRaw = process.env.CORS_ORIGIN || 'http://localhost:8000';
+  const corsRaw = process.env.CORS_ORIGIN || '*';
   const corsOrigin = corsRaw.includes(',')
     ? corsRaw.split(',').map((s) => s.trim()).filter(Boolean)
     : corsRaw.trim();
