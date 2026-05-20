@@ -35,7 +35,7 @@ function toYmd(d) {
 }
 
 /**
- * Builds nested latency stats compatible with the flamegraph UI (`pipeline`, `total_rc`).
+ * Builds nested processing stats compatible with the flamegraph UI (`pipeline`, `total_value`).
  *
  * @param {() => number} rng
  */
@@ -96,7 +96,7 @@ function buildStatsTree(rng) {
   const asyncHandoff = 8 + Math.floor(rng() * 25);
   const enrichment = knowledgeSignals + cacheWrite + asyncHandoff;
 
-  const totalRc =
+  const totalValue =
     gateway
     + routing
     + voiceStackMs
@@ -108,7 +108,7 @@ function buildStatsTree(rng) {
 
   return {
     name: 'Total Duration (ms)',
-    total_rc: totalRc,
+    total_value: totalValue,
     pipeline: [
       {
         name: 'Gateway',

@@ -1,7 +1,7 @@
 'use strict';
 
 /**
- * Runtime configuration for the latency flamegraph API.
+ * Runtime configuration for the Flamegraph Analytics API.
  *
  * @typedef {Object} AppConfig
  * @property {'mock'|'bigquery'} dataSource
@@ -29,7 +29,7 @@ function loadConfig() {
   /** @type {Record<string, string>} */
   const bigQueryTables = {
     sessionMetadata: process.env.BIGQUERY_TABLE_SESSION_METADATA || '',
-    latencyEvents: process.env.BIGQUERY_TABLE_LATENCY_EVENTS || '',
+    processingEvents: process.env.BIGQUERY_TABLE_PROCESSING_EVENTS || '',
     ttsMetrics: process.env.BIGQUERY_TABLE_TTS_METRICS || '',
     asrMetrics: process.env.BIGQUERY_TABLE_ASR_METRICS || '',
     sessionEnrichment: process.env.BIGQUERY_TABLE_SESSION_ENRICHMENT || '',

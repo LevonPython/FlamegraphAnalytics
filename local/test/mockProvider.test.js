@@ -10,7 +10,7 @@ function sumChildren(node) {
 }
 
 function nodeTotal(node) {
-  return node.total ?? node.total_rc;
+  return node.total ?? node.total_value;
 }
 
 function walk(node, visit) {
@@ -39,7 +39,7 @@ test('fetchData returns nested flamegraph-compatible stats', async () => {
 
   assert.ok(rows.length > 0);
   assert.equal(sample.name, 'Total Duration (ms)');
-  assert.ok(sample.total_rc > 0);
+  assert.ok(sample.total_value > 0);
   assert.ok(Array.isArray(sample.pipeline));
   assert.ok(sample.pipeline.length >= 6);
   assert.ok(depth(sample) >= 4);
@@ -49,7 +49,7 @@ test('generated branch totals are internally consistent', async () => {
   const rows = await mockProvider.fetchData({});
   const sample = rows[0].stats;
 
-  assert.equal(sample.total_rc, sumChildren(sample));
+  assert.equal(sample.total_value, sumChildren(sample));
 
   walk(sample, (node) => {
     if (!node.pipeline || node.pipeline.length === 0) return;

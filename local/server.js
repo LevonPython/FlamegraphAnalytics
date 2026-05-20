@@ -132,7 +132,7 @@ function start() {
   const app = createApp(config);
   return app.listen(config.port, () => {
     console.log(
-      `Latency flamegraph API (${config.dataSource}) at http://localhost:${config.port}`,
+      `Flamegraph Analytics API (${config.dataSource}) at http://localhost:${config.port}`,
     );
   });
 }

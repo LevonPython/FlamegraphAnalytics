@@ -20,7 +20,7 @@ function createBigQueryClient(config) {
 function validateBigQueryTables(config) {
   const required = [
     'sessionMetadata',
-    'latencyEvents',
+    'processingEvents',
     'ttsMetrics',
     'asrMetrics',
     'sessionEnrichment',
@@ -64,7 +64,7 @@ async function fetchFilters(config, query) {
   const bigquery = createBigQueryClient(config);
 
   const tMeta = config.bigQueryTables.sessionMetadata;
-  const tLatency = config.bigQueryTables.latencyEvents;
+  const tEvents = config.bigQueryTables.processingEvents;
   const tTts = config.bigQueryTables.ttsMetrics;
 
   const envSql = sqlEnvironmentExpr();
@@ -76,16 +76,16 @@ async function fetchFilters(config, query) {
     `;
 
   const moduleIdQuery = `
-      SELECT DISTINCT latency_row.latency_payload.flow_info.module_id AS module_id
-      FROM \`${tLatency}\` AS latency_row
-      WHERE latency_row.latency_payload.flow_info.module_id > ''
+      SELECT DISTINCT event_row.latency_payload.flow_info.module_id AS module_id
+      FROM \`${tEvents}\` AS event_row
+      WHERE event_row.latency_payload.flow_info.module_id > ''
       ORDER BY module_id
     `;
 
   const contentIdQuery = `
-      SELECT DISTINCT latency_row.latency_payload.flow_info.content_id AS content_id
-      FROM \`${tLatency}\` AS latency_row
-      WHERE latency_row.latency_payload.flow_info.module_id > ''
+      SELECT DISTINCT event_row.latency_payload.flow_info.content_id AS content_id
+      FROM \`${tEvents}\` AS event_row
+      WHERE event_row.latency_payload.flow_info.module_id > ''
       ORDER BY content_id
     `;
 
@@ -158,7 +158,7 @@ async function fetchData(config, query) {
   const bigquery = createBigQueryClient(config);
 
   const tMeta = config.bigQueryTables.sessionMetadata;
-  const tLatency = config.bigQueryTables.latencyEvents;
+  const tEvents = config.bigQueryTables.processingEvents;
   const tTts = config.bigQueryTables.ttsMetrics;
   const tAsr = config.bigQueryTables.asrMetrics;
   const tEnrich = config.bigQueryTables.sessionEnrichment;
@@ -187,19 +187,19 @@ async function fetchData(config, query) {
       ),
       sessions AS (
         SELECT DISTINCT session_id
-        FROM \`${tLatency}\`
+        FROM \`${tEvents}\`
         INNER JOIN \`${tTts}\` AS tts_metrics
           USING(session_id)
       ),
       modules AS (
         SELECT DISTINCT session_id,
-          latency_row.latency_payload.event_id AS event_id,
-          MAX(latency_row.latency_payload.flow_info.module_id) AS module_id,
-          MAX(latency_row.latency_payload.flow_info.content_id) AS content_id
-        FROM \`${tLatency}\` AS latency_row
+          event_row.latency_payload.event_id AS event_id,
+          MAX(event_row.latency_payload.flow_info.module_id) AS module_id,
+          MAX(event_row.latency_payload.flow_info.content_id) AS content_id
+        FROM \`${tEvents}\` AS event_row
         INNER JOIN sessions
           USING(session_id)
-        WHERE latency_row.latency_payload.event_id > ''
+        WHERE event_row.latency_payload.event_id > ''
         GROUP BY session_id, event_id
       ),
       tts_breakdown AS (
@@ -213,7 +213,7 @@ async function fetchData(config, query) {
           IFNULL(tts_metrics.synthesis_time, 0),
           '''}], "total": ''',
           IFNULL(tts_metrics.total_time, 0),
-          '''}], "total_rc": ''',
+          '''}], "total_value": ''',
           IFNULL(tts_metrics.total_time, 0),
           '''}'''
           ) AS stats_string,
@@ -232,7 +232,7 @@ async function fetchData(config, query) {
           GREATEST(IFNULL(asr_metrics.last_final_asr_response, 0)-IFNULL(asr_metrics.asr_detected_speech_start, 0), 0),
            ''',"pipeline": [{"name": "Tail decode", "total":''',
           GREATEST(IFNULL(asr_metrics.last_final_asr_response, 0)-IFNULL(asr_metrics.asr_detected_speech_end, 0), 0),
-          '''}]}]}], "total_rc": ''',
+          '''}]}]}], "total_value": ''',
           GREATEST(IFNULL(asr_metrics.last_final_asr_response, 0)-IFNULL(asr_metrics.detected_speech_start, 0), 0),
           '''}'''
           ) AS stats_string,
@@ -245,19 +245,19 @@ async function fetchData(config, query) {
     unified_data AS (
       SELECT session_id,
         CONCAT('''{"name": "Total Duration (ms)", "pipeline": [''',
-        REPLACE(latency_row.stats_string, "total_rc", "total"),
-        '''], "total_rc":''',
-        SPLIT(latency_row.stats_string, '''"total_rc":''')[ORDINAL(2)])
+        REPLACE(event_row.stats_string, "total_rc", "total"),
+        '''], "total_value":''',
+        SPLIT(event_row.stats_string, '''"total_rc":''')[ORDINAL(2)])
         AS stats_string,
-        IFNULL(latency_row.latency_payload.flow_info.module_id, '') AS module_id,
-        IFNULL(latency_row.latency_payload.flow_info.content_id, '') AS content_id,
-      FROM \`${tLatency}\` AS latency_row
+        IFNULL(event_row.latency_payload.flow_info.module_id, '') AS module_id,
+        IFNULL(event_row.latency_payload.flow_info.content_id, '') AS content_id,
+      FROM \`${tEvents}\` AS event_row
       INNER JOIN sessions
           USING(session_id)
-      WHERE latency_row.latency_payload.processing_time > 200
-        AND latency_row.latency_payload.result = 0
-        AND latency_row.latency_payload.backend IN ('router', 'default')
-        AND (latency_row.latency_payload.not_respond IS NULL OR latency_row.latency_payload.not_respond IS NOT TRUE)
+      WHERE event_row.latency_payload.processing_time > 200
+        AND event_row.latency_payload.result = 0
+        AND event_row.latency_payload.backend IN ('router', 'default')
+        AND (event_row.latency_payload.not_respond IS NULL OR event_row.latency_payload.not_respond IS NOT TRUE)
       UNION ALL
 
       SELECT session_id, stats_string,

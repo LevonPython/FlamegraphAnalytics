@@ -11,7 +11,7 @@ const ENV_KEYS = [
   'BIGQUERY_LOCATION',
   'BIGQUERY_PROJECT_ID',
   'BIGQUERY_TABLE_ASR_METRICS',
-  'BIGQUERY_TABLE_LATENCY_EVENTS',
+  'BIGQUERY_TABLE_PROCESSING_EVENTS',
   'BIGQUERY_TABLE_SESSION_ENRICHMENT',
   'BIGQUERY_TABLE_SESSION_METADATA',
   'BIGQUERY_TABLE_TTS_METRICS',
@@ -48,7 +48,7 @@ test('loadConfig defaults to mock mode', () => {
 
     assert.equal(config.dataSource, 'mock');
     assert.equal(config.port, 3000);
-    assert.equal(config.corsOrigin, 'http://localhost:8000');
+    assert.equal(config.corsOrigin, '*');
     assert.equal(config.apiKey, '');
   });
 });
@@ -64,7 +64,7 @@ test('loadConfig reads BigQuery table and credential settings', () => {
       BIGQUERY_KEY_FILE: '/tmp/key.json',
       BIGQUERY_LOCATION: 'EU',
       BIGQUERY_TABLE_SESSION_METADATA: 'p.d.session_metadata',
-      BIGQUERY_TABLE_LATENCY_EVENTS: 'p.d.latency_events',
+      BIGQUERY_TABLE_PROCESSING_EVENTS: 'p.d.processing_events',
       BIGQUERY_TABLE_TTS_METRICS: 'p.d.tts_metrics',
       BIGQUERY_TABLE_ASR_METRICS: 'p.d.asr_metrics',
       BIGQUERY_TABLE_SESSION_ENRICHMENT: 'p.d.session_enrichment',
@@ -84,7 +84,7 @@ test('loadConfig reads BigQuery table and credential settings', () => {
       assert.equal(config.bigQueryLocation, 'EU');
       assert.deepEqual(config.bigQueryTables, {
         sessionMetadata: 'p.d.session_metadata',
-        latencyEvents: 'p.d.latency_events',
+        processingEvents: 'p.d.processing_events',
         ttsMetrics: 'p.d.tts_metrics',
         asrMetrics: 'p.d.asr_metrics',
         sessionEnrichment: 'p.d.session_enrichment',

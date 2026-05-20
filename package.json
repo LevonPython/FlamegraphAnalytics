@@ -1,7 +1,7 @@
 {
   "name": "flamegraph-analytics",
   "private": true,
-  "description": "Latency flamegraph demo (mock data by default; optional BigQuery backend)",
+  "description": "Flamegraph analytics demo (mock data by default; optional BigQuery backend)",
   "scripts": {
     "start": "npm run start --prefix local",
     "serve": "npm run serve --prefix local",

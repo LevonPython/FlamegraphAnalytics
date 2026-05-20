@@ -165,14 +165,14 @@
     background-color: #b0d6ff;
   }
     </style>
-    <title>RCLatency Flame-Graph</title>
+    <title>Flamegraph Analytics</title>
   </head>
   <body>
     <div class="container">
 
       <!-- Title -->
       <div class="header clearfix">
-        <h3 class="text-muted">RCLatency Flame-Graph</h3>
+        <h3 class="text-muted">Flamegraph Analytics</h3>
       </div>
 
       <!-- Input Parameters -->
@@ -326,7 +326,10 @@
     function getApiBaseUrl() {
       const meta = document.querySelector('meta[name="api-base-url"]');
       const raw = meta && meta.content ? meta.content.trim() : '';
-      return raw.replace(/\/$/, '') || window.location.origin;
+      if (raw) return raw.replace(/\/$/, '');
+      // Local dev: UI runs on :8000 (Python), API runs on :3000 (Express)
+      const origin = window.location.origin;
+      return origin.endsWith(':8000') ? origin.slice(0, -5) + ':3000' : origin;
     }
 
     /**
@@ -680,7 +683,7 @@
       };
 
       // Check if the stats object is valid and has the necessary properties
-      if (!stats || !stats.name || stats.total_rc === undefined) {
+      if (!stats || !stats.name || stats.total_value === undefined) {
         return null;
       }
 
@@ -690,7 +693,7 @@
       const children = processPipeline(stats.pipeline || []);
       const result = {
         name: stats.name,
-        value: stats.total_rc
+        value: stats.total_value
       };
 
       if (children.length > 0) {
@@ -715,8 +718,8 @@
           combinedStats = JSON.parse(JSON.stringify(stats));  // Deep copy to avoid modifying the original row
           combinedStats.pipeline = mergeDuplicateNodes(combinedStats.pipeline);
         } else {
-          // Combine total_rc
-          combinedStats.total_rc += stats.total_rc;
+          // Combine total_value
+          combinedStats.total_value += stats.total_value;
 
           // Merge the pipelines recursively and handle duplicates
           stats.pipeline.forEach(node2 => {

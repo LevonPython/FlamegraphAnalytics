@@ -1,16 +1,16 @@
-# Flamegraph Analytics — Latency Explorer
+# Flamegraph Analytics — Performance Explorer
 
-Interactive demo that turns multi-stage latency breakdowns into a
+Interactive demo that turns multi-stage processing breakdowns into a
 [D3 flame graph](https://github.com/spiermar/d3-flame-graph). **Mock data runs by
 default** so anyone can clone and explore without cloud credentials. An optional
 **BigQuery** backend remains available for private deployments.
 
-**Saved UI capture:** open [`screenshots/RCLatency-Flame-Graph.htm`](screenshots/RCLatency-Flame-Graph.htm)
+**Saved UI capture:** open [`screenshots/Flamegraph-Analytics.htm`](screenshots/Flamegraph-Analytics.htm)
 in a browser for a frozen snapshot of the interface (exported from an earlier local run).
 
 ## What It Demonstrates
 
-- Visual drill-down into nested latency pipelines (routing, voice stack, model time).
+- Visual drill-down into nested processing pipelines (routing, voice stack, model time).
 - REST API contract stable for the vanilla JS client (`/fetch-filters`, `/fetch-data`).
 - Clear separation between **demo data generation** and **warehouse-backed** mode.
 
@@ -105,7 +105,7 @@ internet.
 
 1. Provision tables compatible with the shapes referenced in
    [`local/lib/bigQueryProvider.js`](local/lib/bigQueryProvider.js): session metadata,
-   latency rows with nested **`latency_payload`** (event id, `flow_info`, processing flags,
+   processing event rows with nested **`latency_payload`** (event id, `flow_info`, processing flags,
    optional `stats_string` at row scope), **TTS metrics** rows joined on `session_id`,
    **ASR metrics** rows, and enriched sessions exposing `session_start_timestamp` (plus
    `user_id` / `session_id` for joins).
@@ -124,11 +124,11 @@ Both endpoints accept optional multi-value query params by repeating keys
 | Method | Path | Description |
 |--------|------|-------------|
 | `GET` | `/fetch-filters` | Distinct filter values for the current date window |
-| `GET` | `/fetch-data` | Rows shaped as `{ stats: { name, pipeline, total_rc } }` |
+| `GET` | `/fetch-data` | Rows shaped as `{ stats: { name, pipeline, total_value } }` |
 
 ## Screenshots & Saved HTML
 
-- [`screenshots/RCLatency-Flame-Graph.htm`](screenshots/RCLatency-Flame-Graph.htm) —
+- [`screenshots/Flamegraph-Analytics.htm`](screenshots/Flamegraph-Analytics.htm) —
   offline snapshot when you cannot host the demo live.
 
 ### Mock Data Flame Graph Snapshots
@@ -141,7 +141,7 @@ Both endpoints accept optional multi-value query params by repeating keys
 
 ## Highlight reel
 
-- Summarized complex latency JSON into a hierarchical flame graph for faster RCA.
+- Summarized complex processing JSON into a hierarchical flame graph for faster root-cause analysis.
 - Mock-friendly backend so others can run the project locally without warehouse access.
 - Optional reconnect to real datasets purely through configuration.
 
